@@ -77,6 +77,7 @@
 #include "SDL3/SDL_filesystem.h"
 #include "SDL3/SDL_iostream.h"
 #include "SDL3/SDL_misc.h"
+#include "dusk/touch_controller.hpp"
 #include "cxxopts.hpp"
 #include "d/actor/d_a_movie_player.h"
 #include "dusk/audio/DuskAudioSystem.h"
@@ -167,6 +168,7 @@ bool launchUILoop() {
         while (event != nullptr && event->type != AURORA_NONE) {
             switch (event->type) {
             case AURORA_SDL_EVENT:
+                dusk::touch_controller::handle_event(event->sdl);
                 dusk::ui::handle_event(event->sdl);
                 dusk::g_imguiConsole.HandleSDLEvent(event->sdl);
                 break;
@@ -186,6 +188,8 @@ bool launchUILoop() {
         }
 
         dusk::ui::update();
+        dusk::touch_controller::update();
+        dusk::touch_controller::draw();
 
         dusk::g_imguiConsole.PreDraw();
         dusk::g_imguiConsole.PostDraw();
@@ -251,6 +255,7 @@ void main01(void) {
                 dusk::game_clock::reset_frame_timer();
                 break;
             case AURORA_SDL_EVENT:
+                dusk::touch_controller::handle_event(event->sdl);
                 dusk::ui::handle_event(event->sdl);
                 dusk::g_imguiConsole.HandleSDLEvent(event->sdl);
                 break;
@@ -277,6 +282,8 @@ void main01(void) {
         mDoGph_gInf_c::updateRenderSize();
 
         dusk::ui::update();
+        dusk::touch_controller::update();
+        dusk::touch_controller::draw();
 
         const auto pacing = dusk::game_clock::advance_main_loop();
         if (pacing.is_interpolating) {
@@ -589,6 +596,7 @@ int game_main(int argc, char* argv[]) {
         config.allowTextureDumps = false;
         auroraInfo = aurora_initialize(argc, argv, &config);
     }
+    dusk::touch_controller::initialize();
 
 #ifdef DUSK_DISCORD
     if (dusk::getSettings().game.enableDiscordPresence) {
@@ -631,6 +639,7 @@ int game_main(int argc, char* argv[]) {
         dusk::discord::shutdown();
 #endif
         dusk::ui::shutdown();
+        dusk::touch_controller::shutdown();
         aurora_shutdown();
         return 0;
     }
@@ -709,6 +718,7 @@ int game_main(int argc, char* argv[]) {
                 dusk::discord::shutdown();
 #endif
                 dusk::ui::shutdown();
+                dusk::touch_controller::shutdown();
                 aurora_shutdown();
                 return 0;
             }
@@ -783,6 +793,7 @@ int game_main(int argc, char* argv[]) {
     dusk::discord::shutdown();
 #endif
     dusk::ui::shutdown();
+    dusk::touch_controller::shutdown();
     aurora_shutdown();
 
     return 0;

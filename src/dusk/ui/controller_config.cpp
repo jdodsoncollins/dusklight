@@ -17,6 +17,7 @@
 
 #include "dusk/action_bindings.h"
 #include "dusk/config.hpp"
+#include "dusk/touch_controller.hpp"
 
 namespace dusk::ui {
 namespace {
@@ -382,8 +383,8 @@ void ControllerConfigWindow::render_page(Pane& pane, int port, Page page) {
             });
 
         pane.add_button({
-                            .text = "Keyboard",
-                            .isSelected = [port] { return keyboard_active(port); },
+                             .text = "Keyboard",
+                             .isSelected = [port] { return keyboard_active(port); },
                         })
             .on_pressed([this, port] {
                 mDoAud_seStartMenu(kSoundClick);
@@ -394,6 +395,23 @@ void ControllerConfigWindow::render_page(Pane& pane, int port, Page page) {
                 ClearAllActionBindings(port);
             });
 
+        if (touch_controller::available()) {
+            pane.add_button({
+                                .text = touch_controller::kDeviceName,
+                                .isSelected = [port] {
+                                    const char* name = PADGetName(static_cast<u32>(port));
+                                    return name != nullptr && Rml::String{name} == touch_controller::kDeviceName;
+                                },
+                            })
+                .on_pressed([this, port] {
+                    mDoAud_seStartMenu(kSoundClick);
+                    cancel_pending_binding();
+                    touch_controller::assign_to_port(port);
+                    PADSerializeMappings();
+                    ClearAllActionBindings(port);
+                });
+        }
+
         const u32 controllerCount = PADCount();
         if (controllerCount == 0) {
             pane.add_text("No Device Detected");
@@ -401,6 +419,10 @@ void ControllerConfigWindow::render_page(Pane& pane, int port, Page page) {
         }
 
         for (u32 i = 0; i < controllerCount; ++i) {
+            const char* name = PADGetNameForControllerIndex(i);
+            if (name != nullptr && Rml::String{name} == touch_controller::kDeviceName) {
+                continue;
+            }
             pane.add_button(
                     {
                         .text = controller_index_name(i),
