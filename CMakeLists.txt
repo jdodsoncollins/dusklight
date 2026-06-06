@@ -199,10 +199,23 @@ if (DUSK_MOVIE_SUPPORT)
                 list(APPEND _jpeg_cmake_args -D${_var}=${${_var}})
             endif ()
         endforeach ()
+        set(_jpeg_external_project_args "")
+        if (CMAKE_GENERATOR STREQUAL "Xcode")
+            list(APPEND _jpeg_cmake_args
+                -DCMAKE_CONFIGURATION_TYPES=RelWithDebInfo
+                -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO=${_jpeg_install_dir}/lib
+            )
+            set(_jpeg_external_project_args
+                INSTALL_COMMAND
+                ${CMAKE_COMMAND} -E make_directory ${_jpeg_install_dir}/include &&
+                ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/src/turbojpeg.h ${_jpeg_install_dir}/include/turbojpeg.h
+            )
+        endif ()
         ExternalProject_Add(libjpeg-turbo-ext
             URL https://github.com/libjpeg-turbo/libjpeg-turbo/archive/refs/tags/3.1.0.tar.gz
             URL_HASH SHA256=35fec2e1ddfb05ecf6d93e50bc57c1e54bc81c16d611ddf6eff73fff266d8285
             CMAKE_ARGS ${_jpeg_cmake_args}
+            ${_jpeg_external_project_args}
             BUILD_BYPRODUCTS ${_jpeg_lib}
         )
         file(MAKE_DIRECTORY ${_jpeg_install_dir}/include)
@@ -429,11 +442,16 @@ set(GAME_DEBUG_FILES
         src/dusk/audio/DspStub.cpp
         src/dusk/imgui/ImGuiAudio.cpp
 )
-set_source_files_properties(
-        ${GAME_DEBUG_FILES}
-        PROPERTIES
-        COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:DEBUG=1>;$<$<CONFIG:Debug>:PARTIAL_DEBUG=1>"
-)
+if (CMAKE_GENERATOR STREQUAL "Xcode")
+    # Xcode cannot represent per-config per-source compile definitions.
+    # Keep generated Xcode projects release-compatible; Ninja presets retain Debug-only defines below.
+else ()
+    set_source_files_properties(
+            ${GAME_DEBUG_FILES}
+            PROPERTIES
+            COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:DEBUG=1>;$<$<CONFIG:Debug>:PARTIAL_DEBUG=1>"
+    )
+endif ()
 
 # game_base is for all other game code files
 set(GAME_BASE_FILES
@@ -443,11 +461,19 @@ set(GAME_BASE_FILES
         ${DUSK_FILES}
         ${DOLPHIN_FILES}
 )
-set_source_files_properties(
-        ${GAME_BASE_FILES}
-        PROPERTIES
-        COMPILE_DEFINITIONS "NDEBUG=1;NDEBUG_DEFINED=1;DEBUG_DEFINED=0;$<$<CONFIG:Debug>:PARTIAL_DEBUG=1>"
-)
+if (CMAKE_GENERATOR STREQUAL "Xcode")
+    set_source_files_properties(
+            ${GAME_BASE_FILES}
+            PROPERTIES
+            COMPILE_DEFINITIONS "NDEBUG=1;NDEBUG_DEFINED=1;DEBUG_DEFINED=0"
+    )
+else ()
+    set_source_files_properties(
+            ${GAME_BASE_FILES}
+            PROPERTIES
+            COMPILE_DEFINITIONS "NDEBUG=1;NDEBUG_DEFINED=1;DEBUG_DEFINED=0;$<$<CONFIG:Debug>:PARTIAL_DEBUG=1>"
+    )
+endif ()
 
 foreach(jsystem_lib IN LISTS JSYSTEM_LIBRARIES)
     target_compile_definitions(${jsystem_lib} PRIVATE
